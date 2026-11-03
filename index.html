@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>赚钱计数器 · 上班每一秒都在进账</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
+<style>
+  :root{
+    --bg:#0b0f14; --card:#141b24; --card2:#1a2330; --line:#263242;
+    --text:#e8eef5; --dim:#8fa1b5; --gold:#ffc94d; --green:#3ddc84;
+    --red:#ff6b6b; --blue:#4da3ff; --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 600px at 50% -10%, #16222f 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    min-height:100vh; padding:20px 14px 40px;
+  }
+  .wrap{max-width:560px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;margin:4px 2px 14px}
+  header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.5px}
+  header h1 .coin{display:inline-block;animation:bob 2.4s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  .wakelock{font-size:12px;color:var(--dim);background:var(--card);border:1px solid var(--line);
+    padding:7px 11px;border-radius:999px;cursor:pointer;user-select:none}
+  .wakelock.on{color:var(--gold);border-color:var(--gold)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 16px;margin-bottom:14px}
+  .counter-card{text-align:center;padding:26px 16px 20px;background:linear-gradient(180deg,var(--card2),var(--card))}
+  .status-line{font-size:13px;color:var(--dim);min-height:18px}
+  .status-line .badge{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;margin-left:6px;vertical-align:1px}
+  .badge.normal{background:#1d2f22;color:var(--green)}
+  .badge.ot{background:#3a2a10;color:var(--gold)}
+  .badge.paused{background:#33222a;color:var(--red)}
+  .badge.slack{background:#1c2f45;color:var(--blue)}
+  .big-money{font-size:clamp(40px,11.5vw,60px);font-weight:800;line-height:1.15;margin:8px 0 2px;
+    font-variant-numeric:tabular-nums;color:var(--gold);text-shadow:0 0 32px rgba(255,201,77,.18);word-break:break-all}
+  .per-sec{font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .per-sec b{color:var(--green);font-weight:600}
+  .stats{display:flex;gap:10px;margin-top:18px}
+  .stat{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:10px 6px;min-width:0}
+  .stat .v{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;word-break:break-all}
+  .stat .k{font-size:11px;color:var(--dim);margin-top:2px}
+  .stat.ot .v{color:var(--gold)}
+  .stat.slack .v{color:var(--blue)}
+  .progress{height:8px;background:#0d1420;border-radius:99px;overflow:hidden;margin-top:16px;border:1px solid var(--line)}
+  .progress > div{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--gold));border-radius:99px;transition:width .3s}
+  .progress-label{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:6px;gap:8px}
+  .controls{display:flex;gap:10px;margin-top:18px}
+  button{flex:1;border:none;border-radius:12px;padding:14px 8px;font-size:16px;font-weight:700;cursor:pointer;
+    font-family:inherit;transition:transform .05s, opacity .2s}
+  button:active{transform:scale(.97)}
+  button:disabled{opacity:.35;cursor:default}
+  .btn-start{background:var(--green);color:#06280f}
+  .btn-pause{background:var(--card2);color:var(--text);border:1px solid var(--line)}
+  .btn-ot{background:#3a2a10;color:var(--gold);border:1px solid var(--gold)}
+  .btn-end{background:transparent;color:var(--red);border:1px solid #4a2b33}
+  .btn-slack-end{background:#1c2f45;color:var(--blue);border:1px solid var(--blue)}
+  .controls.small button{font-size:14px;padding:11px 8px}
+  h2{font-size:15px;margin:0 0 12px;font-weight:700}
+  h2 .sub{font-size:12px;color:var(--dim);font-weight:400;margin-left:6px}
+  .seg{display:flex;background:#0d1420;border:1px solid var(--line);border-radius:11px;padding:3px;margin-bottom:14px}
+  .seg button{background:transparent;color:var(--dim);padding:9px 0;font-size:14px;border-radius:8px}
+  .seg button.sel{background:var(--card2);color:var(--text)}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
+  .field .row{display:flex;align-items:center;gap:8px}
+  .field input,.field select{
+    flex:1;width:100%;background:#0d1420;border:1px solid var(--line);color:var(--text);
+    border-radius:10px;padding:11px 12px;font-size:16px;font-family:inherit;outline:none;min-width:0}
+  .field input:focus,.field select:focus{border-color:var(--blue)}
+  .field .unit{font-size:13px;color:var(--dim);white-space:nowrap}
+  .derived{background:rgba(77,163,255,.07);border:1px dashed #2c435f;border-radius:10px;padding:10px 12px;
+    font-size:13px;color:#b9d4f2;line-height:1.7;font-variant-numeric:tabular-nums}
+  .switch-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0 10px}
+  .switch-row .t{font-size:14px}
+  .switch{position:relative;width:48px;height:27px;flex:none;cursor:pointer}
+  .switch input{opacity:0;width:0;height:0}
+  .switch .tr{position:absolute;inset:0;background:#2a3646;border-radius:99px;transition:.2s}
+  .switch .tr:before{content:"";position:absolute;width:21px;height:21px;left:3px;top:3px;background:#cfe0f0;border-radius:50%;transition:.2s}
+  .switch input:checked + .tr{background:#8a6a1f}
+  .switch input:checked + .tr:before{transform:translateX(21px);background:var(--gold)}
+  .hidden{display:none !important}
+  .note{font-size:12px;color:var(--dim);line-height:1.8}
+  .note b{color:#c8d6e5;font-weight:600}
+  .summary{background:rgba(61,220,132,.06);border:1px solid #234d36;border-radius:12px;padding:14px;font-size:14px;line-height:1.9;margin-top:14px}
+  .summary .amt{color:var(--gold);font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}
+  .slack-types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 6px}
+  .chip{background:#0d1420;border:1px solid var(--line);color:var(--text);border-radius:11px;padding:11px 2px;font-size:14px;font-weight:600}
+  .chip.active{border-color:var(--blue);color:var(--blue);background:#1c2f45}
+  .slack-now{text-align:center;padding:10px 0 4px}
+  .slack-now .t{font-size:13px;color:var(--dim)}
+  .slack-amt{font-size:clamp(30px,9vw,42px);font-weight:800;color:var(--blue);font-variant-numeric:tabular-nums;line-height:1.2;word-break:break-all;text-shadow:0 0 26px rgba(77,163,255,.25)}
+  .breakdown{font-size:13px;color:var(--dim);line-height:2;font-variant-numeric:tabular-nums}
+  .breakdown b{color:var(--text);font-weight:600}
+  footer{text-align:center;color:#54677c;font-size:11px;margin-top:6px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="coin">💰</span> 赚钱计数器</h1>
+    <div class="wakelock" id="wakeBtn">☀️ 屏幕常亮：关</div>
+  </header>
+
+  <!-- ===== 计数器 ===== -->
+  <section class="card counter-card">
+    <div class="status-line" id="statusLine">还没开始上班</div>
+    <div class="big-money" id="bigMoney">$0.00</div>
+    <div class="per-sec" id="perSec">先在下面填好工资，再点「开始上班」</div>
+    <div class="stats">
+      <div class="stat"><div class="v" id="statWorked">00:00:00</div><div class="k">已工作</div></div>
+      <div class="stat"><div class="v" id="statRate">$0.00</div><div class="k">当前时薪</div></div>
+      <div class="stat ot"><div class="v" id="statOt">$0.00</div><div class="k">加班收入</div></div>
+      <div class="stat slack"><div class="v" id="statSlack">$0.00</div><div class="k">摸鱼偷了</div></div>
+    </div>
+    <div class="progress"><div id="goalBar"></div></div>
+    <div class="progress-label"><span id="goalText">今日目标</span><span id="goalPct">0%</span></div>
+    <div class="controls">
+      <button class="btn-start" id="btnStart">开始上班</button>
+      <button class="btn-pause hidden" id="btnPause">暂停</button>
+      <button class="btn-ot hidden" id="btnOt">开始加班</button>
+    </div>
+    <div class="controls small">
+      <button class="btn-end hidden" id="btnEnd">结束并结算</button>
+    </div>
+    <div class="summary hidden" id="summaryBox"></div>
+  </section>
+
+  <!-- ===== 摸鱼 ===== -->
+  <section class="card">
+    <h2>🐟 带薪摸鱼<span class="sub">上班中点一下，看看偷走多少钱</span></h2>
+    <div class="field">
+      <label>显示货币（只换显示，不影响工资输入；选数字大的更爽）</label>
+      <div class="row">
+        <select id="curSel">
+          <optgroup label="常用">
+            <option value="USD">🇺🇸 美元 USD</option>
+            <option value="CAD">🇨🇦 加元 CAD</option>
+            <option value="CNY">🇨🇳 人民币 CNY</option>
+            <option value="JPY">🇯🇵 日元 JPY</option>
+            <option value="KRW">🇰🇷 韩元 KRW</option>
+            <option value="AUD">🇦🇺 澳元 AUD</option>
+            <option value="EUR">🇪🇺 欧元 EUR</option>
+            <option value="GBP">🇬🇧 英镑 GBP</option>
+            <option value="SGD">🇸🇬 新加坡元 SGD</option>
+            <option value="HKD">🇭🇰 港币 HKD</option>
+            <option value="TWD">🇹🇼 新台币 TWD</option>
+          </optgroup>
+          <optgroup label="数字巨大 · 爽版（纯好玩）">
+            <option value="IRR">🇮🇷 伊朗里亚尔 IRR · 全球最不值钱（约 177 万 / 美元）</option>
+            <option value="LBP">🇱🇧 黎巴嫩镑 LBP（约 8.95 万 / 美元）</option>
+            <option value="VND">🇻🇳 越南盾 VND（约 2.57 万 / 美元）</option>
+            <option value="LAK">🇱🇦 老挝基普 LAK（约 2.24 万 / 美元）</option>
+            <option value="IDR">🇮🇩 印尼盾 IDR（约 1.81 万 / 美元）</option>
+            <option value="UZS">🇺🇿 乌兹别克苏姆 UZS</option>
+            <option value="PYG">🇵🇾 巴拉圭瓜拉尼 PYG</option>
+            <option value="MGA">🇲🇬 马达加斯加阿里亚里 MGA</option>
+            <option value="KHR">🇰🇭 柬埔寨瑞尔 KHR</option>
+            <option value="COP">🇨🇴 哥伦比亚比索 COP</option>
+            <option value="NGN">🇳🇬 尼日利亚奈拉 NGN</option>
+            <option value="CLP">🇨🇱 智利比索 CLP</option>
+            <option value="HUF">🇭🇺 匈牙利福林 HUF</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+    <div class="slack-types" id="slackTypes">
+      <button class="chip" data-type="🚽 拉屎">🚽 拉屎</button>
+      <button class="chip" data-type="🚻 尿尿">🚻 尿尿</button>
+      <button class="chip" data-type="📱 刷抖音">📱 刷抖音</button>
+      <button class="chip" data-type="😶 发呆">😶 发呆</button>
+      <button class="chip" data-type="📖 看小说">📖 看小说</button>
+      <button class="chip" data-type="☕ 茶水间">☕ 茶水间</button>
+      <button class="chip" data-type="🚬 抽烟">🚬 抽烟</button>
+      <button class="chip" data-type="💤 打盹">💤 打盹</button>
+      <button class="chip" data-type="🐟 其他摸鱼">🐟 其他</button>
+    </div>
+    <div class="slack-now hidden" id="slackNow">
+      <div class="t" id="slackNowText">摸鱼中</div>
+      <div class="slack-amt" id="slackNowAmt">$0.00</div>
+      <div class="controls"><button class="btn-slack-end" id="btnSlackEnd">结束摸鱼，回去干活</button></div>
+    </div>
+    <div class="breakdown" id="slackBreakdown">还没开始上班，摸鱼按钮是灰的 —— 先点上面的「开始上班」。</div>
+  </section>
+
+  <!-- ===== 工资设置 ===== -->
+  <section class="card">
+    <h2>工资设置<span class="sub">改完自动保存</span></h2>
+    <div class="seg" id="modeSeg">
+      <button data-mode="annual" class="sel">年薪制</button>
+      <button data-mode="hourly">时薪制</button>
+    </div>
+
+    <div class="field">
+      <label>工资输入货币（年薪/时薪按这个货币填，切换时数字会自动换算）</label>
+      <div class="row">
+        <select id="inCurSel">
+          <option value="USD">🇺🇸 美元 USD</option>
+          <option value="CAD">🇨🇦 加元 CAD</option>
+          <option value="CNY">🇨🇳 人民币 CNY</option>
+          <option value="JPY">🇯🇵 日元 JPY</option>
+          <option value="KRW">🇰🇷 韩元 KRW</option>
+          <option value="AUD">🇦🇺 澳元 AUD</option>
+          <option value="EUR">🇪🇺 欧元 EUR</option>
+          <option value="GBP">🇬🇧 英镑 GBP</option>
+          <option value="SGD">🇸🇬 新加坡元 SGD</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="annualFields">
+      <div class="field">
+        <label>年薪（税前）</label>
+        <div class="row"><input type="number" id="inAnnual" inputmode="decimal" min="0" placeholder="例如 150000"><span class="unit" id="annualUnit">USD/年</span></div>
+      </div>
+      <div class="field">
+        <label>每周休息几天</label>
+        <div class="row">
+          <select id="inRestDays">
+            <option value="0">0 天（无休）</option>
+            <option value="1">1 天（单休）</option>
+            <option value="2" selected>2 天（双休）</option>
+            <option value="3">3 天</option>
+          </select>
+          <span class="unit">即每周上 <b id="workDaysEcho">5</b> 天</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="hourlyFields" class="hidden">
+      <div class="field">
+        <label>时薪</label>
+        <div class="row"><input type="number" id="inHourly" inputmode="decimal" min="0" step="0.01" placeholder="例如 45"><span class="unit" id="hourlyUnit">USD/小时</span></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>每天工作几小时（年薪折算 & 加班门槛的基准）</label>
+      <div class="row"><input type="number" id="inHoursPerDay" inputmode="decimal" min="0" step="0.5" value="8"><span class="unit">小时/天</span></div>
+    </div>
+
+    <div class="derived" id="derivedBox">填好工资后，这里会显示折算出来的日薪和时薪。</div>
+  </section>
+
+  <!-- ===== 加班设置 ===== -->
+  <section class="card">
+    <h2>加班（额外收入）<span class="sub">单独统计，不混进正常收入</span></h2>
+    <div class="switch-row">
+      <span class="t">启用加班计算</span>
+      <label class="switch"><input type="checkbox" id="inOtEnabled"><span class="tr"></span></label>
+    </div>
+    <div id="otFields" class="hidden">
+      <div class="field">
+        <label>加班倍数</label>
+        <div class="row"><input type="number" id="inOtMult" inputmode="decimal" min="1" step="0.1" value="1.5"><span class="unit">倍时薪</span></div>
+      </div>
+      <div class="field">
+        <label>加班怎么开始</label>
+        <div class="row">
+          <select id="inOtMode">
+            <option value="auto" selected>自动：计时满 N 小时后自动算加班</option>
+            <option value="manual">手动：我自己点「开始加班」</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" id="otAfterField">
+        <label>计时满几小时后自动进入加班</label>
+        <div class="row"><input type="number" id="inOtAfter" inputmode="decimal" min="0" step="0.5" value="8"><span class="unit">小时</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 说明 ===== -->
+  <section class="card">
+    <h2>关于锁屏和后台</h2>
+    <p class="note">
+      手机浏览器切后台或锁屏后，页面刷新会被系统冻结，这是所有网页应用都绕不开的限制。本计数器的做法：<br>
+      · <b>金额永远按真实时间算</b>：开始/暂停/摸鱼的时间点都存在手机本地，锁屏多久都不丢，回来打开自动对齐到正确金额，不会少算；<br>
+      · 设置和进度都存在<b>本地存储</b>里，误关页面、浏览器被系统杀掉，重新打开都能接着算；<br>
+      · 想盯着数字跳，可以开右上角的<b>屏幕常亮</b>（用的是系统 Wake Lock，锁屏后会失效，解锁回来会自动重新申请）；<br>
+      · 货币汇率是 <b>2026 年 11 月 3 日</b>当天拉取的牌价，直接写死在代码里（九种输入货币两两的组合都算好了），不联网调任何接口；爽版货币纯属图个数字大、看着爽。
+    </p>
+  </section>
+
+  <footer>赚钱计数器 · 数据只存在你自己的手机浏览器里，不上传任何服务器</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var LS_SET = "salaryTicker.settings.v1";
+  var LS_SES = "salaryTicker.session.v1";
+  var LS_DAY = "salaryTicker.day.v1";
+
+  /* 汇率牌价：2026-11-03 当天拉取后写死在代码里，不调任何 API */
+  /* USD_PER[X] = 1 美元能换多少 X；dp = 显示小数位 */
+  var USD_PER = {
+    USD:{rate:1, dp:2},       CAD:{rate:1.39809, dp:2},  CNY:{rate:6.66539, dp:2},
+    JPY:{rate:157.896, dp:0}, KRW:{rate:1344.13, dp:0},  AUD:{rate:1.4279, dp:2},
+    EUR:{rate:0.893269, dp:2}, GBP:{rate:0.745737, dp:2}, SGD:{rate:1.27912, dp:2},
+    HKD:{rate:7.84669, dp:2}, TWD:{rate:32.5892, dp:2},
+    IRR:{rate:1771504, dp:0}, LBP:{rate:89500, dp:0},    VND:{rate:25743.9, dp:0},
+    LAK:{rate:22353.3, dp:0}, IDR:{rate:18144.9, dp:0},  UZS:{rate:11926.7, dp:0},
+    PYG:{rate:5842.88, dp:0}, MGA:{rate:4579.09, dp:0},  KHR:{rate:4107.37, dp:0},
+    COP:{rate:3197.31, dp:0}, NGN:{rate:1345.87, dp:0},  CLP:{rate:993.985, dp:0},
+    HUF:{rate:325.503, dp:0}
+  };
+  /* 九种输入货币的两两组合（81 个），同样按 2026-11-03 牌价写死：PAIRS[from][to] = 1 单位 from 换多少 to */
+  var PAIRS = {
+    USD: {USD:1, CAD:1.39809, CNY:6.66539, JPY:157.896, KRW:1344.13, AUD:1.4279, EUR:0.893269, GBP:0.745737, SGD:1.27912},
+    CAD: {USD:0.715262, CAD:1, CNY:4.7675, JPY:112.937, KRW:961.401, AUD:1.02132, EUR:0.638921, GBP:0.533397, SGD:0.914905},
+    CNY: {USD:0.150029, CAD:0.209754, CNY:1, JPY:23.6889, KRW:201.657, AUD:0.214225, EUR:0.134016, GBP:0.111882, SGD:0.191905},
+    JPY: {USD:0.00633328, CAD:0.00885449, CNY:0.0422138, JPY:1, KRW:8.51272, AUD:0.00904326, EUR:0.00565732, GBP:0.00472296, SGD:0.00810102},
+    KRW: {USD:0.000743978, CAD:0.00104015, CNY:0.00495891, JPY:0.117471, KRW:1, AUD:0.00106232, EUR:0.000664572, GBP:0.000554812, SGD:0.000951636},
+    AUD: {USD:0.700331, CAD:0.979126, CNY:4.66798, JPY:110.58, KRW:941.333, AUD:1, EUR:0.625584, GBP:0.522263, SGD:0.895807},
+    EUR: {USD:1.11948, CAD:1.56514, CNY:7.4618, JPY:176.762, KRW:1504.73, AUD:1.59851, EUR:1, GBP:0.83484, SGD:1.43195},
+    GBP: {USD:1.34096, CAD:1.87478, CNY:8.93799, JPY:211.732, KRW:1802.41, AUD:1.91474, EUR:1.19783, GBP:1, SGD:1.71524},
+    SGD: {USD:0.781788, CAD:1.09301, CNY:5.21092, JPY:123.441, KRW:1050.82, AUD:1.11631, EUR:0.698347, GBP:0.583008, SGD:1}
+  };
+
+  function $(id){ return document.getElementById(id); }
+  function load(key, fb){ try{ var v = localStorage.getItem(key); return v ? JSON.parse(v) : fb; }catch(e){ return fb; } }
+  function save(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+  function num(v, d){ var n = parseFloat(v); return (isNaN(n) || n < 0) ? d : n; }
+  function todayStr(){ var d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function fmtHMS(ms){
+    var s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor(s%3600/60), ss = s%60;
+    return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(ss).padStart(2,"0");
+  }
+  function fmtDur(ms){
+    var s = Math.round(ms/1000);
+    if(s < 60) return s + " 秒";
+    var m = Math.floor(s/60);
+    if(m < 60) return m + " 分 " + (s%60) + " 秒";
+    return Math.floor(m/60) + " 小时 " + (m%60) + " 分";
+  }
+
+  /* ---------- 设置 ---------- */
+  /* 工资在内部一律以美元存（annual/hourly 都是美元数），输入框按输入货币换算显示 */
+  var settings = Object.assign({
+    mode:"annual", annual:150000, restDays:2, hoursPerDay:8,
+    hourly:45, otEnabled:false, otMult:1.5, otMode:"auto", otAfter:8,
+    currency:"USD", inputCurrency:"USD"
+  }, load(LS_SET, {}));
+  if(!USD_PER[settings.currency]) settings.currency = "USD";
+  if(!PAIRS[settings.inputCurrency]) settings.inputCurrency = "USD";
+
+  var formatters = {};
+  function fmt(usd){
+    var c = USD_PER[settings.currency];
+    var f = formatters[settings.currency];
+    if(!f){
+      f = new Intl.NumberFormat("en-US",{style:"currency", currency:settings.currency,
+        minimumFractionDigits:c.dp, maximumFractionDigits:c.dp});
+      formatters[settings.currency] = f;
+    }
+    return f.format(usd * c.rate);
+  }
+  function fmtPerSec(usdPerSec){
+    var c = USD_PER[settings.currency];
+    return (usdPerSec * c.rate).toLocaleString("en-US",{minimumFractionDigits:4, maximumFractionDigits:4});
+  }
+  /* 美元数 → 当前输入货币的输入框显示值（最多 2 位小数） */
+  function toInputVal(usd){
+    var v = usd * USD_PER[settings.inputCurrency].rate;
+    return String(Math.round(v * 100) / 100);
+  }
+
+  function workDaysPerWeek(){ return 7 - settings.restDays; }
+  function baseHourly(){
+    if(settings.mode === "hourly") return settings.hourly;
+    var days = workDaysPerWeek() * 52;
+    if(days <= 0 || settings.hoursPerDay <= 0) return 0;
+    return settings.annual / days / settings.hoursPerDay;
+  }
+  function dayTarget(){
+    if(settings.mode === "hourly") return settings.hourly * settings.hoursPerDay;
+    var days = workDaysPerWeek() * 52;
+    return days > 0 ? settings.annual / days : 0;
+  }
+
+  /* ---------- 会话状态（摸鱼段按“已工作毫秒”坐标记录，暂停自动冻结） ---------- */
+  var session = Object.assign({
+    status:"idle", segStart:null, accumMs:0, otManualAtMs:null,
+    slackActive:null,   // {type, fromMs}
+    slackSegs:[],       // {type, fromMs, toMs}
+    date:todayStr()
+  }, load(LS_SES, {}));
+  if(!Array.isArray(session.slackSegs)) session.slackSegs = [];
+
+  var day = Object.assign({ date: todayStr(), earned: 0, slack: 0 }, load(LS_DAY, {}));
+  if(day.date !== todayStr()){ day = { date: todayStr(), earned: 0, slack: 0 }; save(LS_DAY, day); }
+
+  function workedMs(){
+    var ms = session.accumMs;
+    if(session.status === "running" && session.segStart) ms += Date.now() - session.segStart;
+    return ms;
+  }
+  function otThresholdMs(){
+    if(!settings.otEnabled) return Infinity;
+    if(settings.otMode === "auto") return settings.otAfter * 3600000;
+    return session.otManualAtMs === null ? Infinity : session.otManualAtMs;
+  }
+  /* 工作区间 [a,b]（已工作毫秒坐标）内赚到的美元，自动按加班门槛分段 */
+  function earnedIn(a, b){
+    if(b <= a) return 0;
+    var rate = baseHourly(), T = otThresholdMs();
+    var normalMs = Math.max(0, Math.min(b, T) - a);
+    var otMs = Math.max(0, b - Math.max(a, T));
+    return normalMs/3600000*rate + otMs/3600000*rate*settings.otMult;
+  }
+  function splitMs(){
+    var total = workedMs(), T = otThresholdMs();
+    var ot = Math.max(0, total - T);
+    if(T === Infinity) ot = 0;
+    return { normal: total - ot, ot: ot };
+  }
+  function earnings(){
+    var sp = splitMs(), rate = baseHourly();
+    var normalPay = sp.normal/3600000*rate;
+    var otPay = sp.ot/3600000*rate*settings.otMult;
+    return { normalPay: normalPay, otPay: otPay, total: normalPay + otPay, sp: sp, rate: rate };
+  }
+  function inOt(){ return workedMs() >= otThresholdMs(); }
+  function slackTotalMs(){
+    var t = 0, i;
+    for(i = 0; i < session.slackSegs.length; i++) t += session.slackSegs[i].toMs - session.slackSegs[i].fromMs;
+    if(session.slackActive) t += workedMs() - session.slackActive.fromMs;
+    return t;
+  }
+  function slackTotalMoney(){
+    var t = 0, i;
+    for(i = 0; i < session.slackSegs.length; i++) t += earnedIn(session.slackSegs[i].fromMs, session.slackSegs[i].toMs);
+    if(session.slackActive) t += earnedIn(session.slackActive.fromMs, workedMs());
+    return t;
+  }
+  function slackByType(){
+    var map = {}, order = [], i, s;
+    function add(type, ms, money){
+      if(!map[type]){ map[type] = { ms: 0, money: 0 }; order.push(type); }
+      map[type].ms += ms; map[type].money += money;
+    }
+    for(i = 0; i < session.slackSegs.length; i++){
+      s = session.slackSegs[i];
+      add(s.type, s.toMs - s.fromMs, earnedIn(s.fromMs, s.toMs));
+    }
+    if(session.slackActive){
+      s = session.slackActive;
+      add(s.type, workedMs() - s.fromMs, earnedIn(s.fromMs, workedMs()));
+    }
+    return { map: map, order: order };
+  }
+  function endSlack(){
+    if(!session.slackActive) return;
+    session.slackSegs.push({ type: session.slackActive.type, fromMs: session.slackActive.fromMs, toMs: workedMs() });
+    session.slackActive = null;
+  }
+  function persist(){ save(LS_SES, session); }
+
+  /* ---------- 界面渲染 ---------- */
+  var els = {
+    status: $("statusLine"), big: $("bigMoney"), perSec: $("perSec"),
+    worked: $("statWorked"), rate: $("statRate"), ot: $("statOt"), slackStat: $("statSlack"),
+    bar: $("goalBar"), goalText: $("goalText"), goalPct: $("goalPct"),
+    btnStart: $("btnStart"), btnPause: $("btnPause"), btnOt: $("btnOt"), btnEnd: $("btnEnd"),
+    summary: $("summaryBox"), derived: $("derivedBox"), workDaysEcho: $("workDaysEcho"),
+    slackNow: $("slackNow"), slackNowText: $("slackNowText"), slackNowAmt: $("slackNowAmt"),
+    slackBreakdown: $("slackBreakdown")
+  };
+
+  function render(){
+    var e = earnings();
+    var running = session.status === "running";
+    var paused = session.status === "paused";
+    var idle = session.status === "idle";
+    var otNow = running && inOt();
+    var slacking = !!session.slackActive;
+    var slackMoney = slackTotalMoney();
+
+    els.big.textContent = fmt(e.total);
+    els.worked.textContent = fmtHMS(workedMs());
+    els.ot.textContent = fmt(e.otPay);
+    els.slackStat.textContent = fmt(slackMoney);
+    var curRate = otNow ? e.rate * settings.otMult : e.rate;
+    els.rate.textContent = fmt(curRate);
+
+    if(idle){
+      els.status.innerHTML = "还没开始上班";
+      els.perSec.textContent = "先在下面填好工资，再点「开始上班」";
+    } else if(paused){
+      els.status.innerHTML = "已暂停，休息中<span class='badge paused'>暂停</span>";
+      els.perSec.textContent = "暂停期间不计钱，点「继续」接着赚";
+    } else if(slacking){
+      els.status.innerHTML = "摸鱼中<span class='badge slack'>🐟 " + session.slackActive.type + "</span>";
+      els.perSec.innerHTML = "摸鱼也在赚钱：每秒进账 <b>" + fmtPerSec(curRate/3600) + "</b> " + settings.currency;
+    } else if(otNow){
+      els.status.innerHTML = "上班中<span class='badge ot'>加班中 " + settings.otMult + " 倍</span>";
+      els.perSec.innerHTML = "每秒进账 <b>" + fmtPerSec(curRate/3600) + "</b> " + settings.currency + " · 加班费率 " + fmt(curRate) + "/小时";
+    } else {
+      var extra = "";
+      if(settings.otEnabled && settings.otMode === "auto"){
+        var left = settings.otAfter * 3600000 - workedMs();
+        if(left > 0) extra = " · 再过 " + fmtHMS(left) + " 进入加班";
+      }
+      els.status.innerHTML = "上班中<span class='badge normal'>正常计费</span>";
+      els.perSec.innerHTML = "每秒进账 <b>" + fmtPerSec(curRate/3600) + "</b> " + settings.currency + extra;
+    }
+
+    var target = dayTarget();
+    var pct = target > 0 ? Math.min(100, (day.earned + e.total) / target * 100) : 0;
+    els.bar.style.width = pct.toFixed(1) + "%";
+    els.goalText.textContent = "今日目标 " + fmt(target) + "（含已结算 " + fmt(day.earned) + "）";
+    els.goalPct.textContent = pct.toFixed(1) + "%";
+
+    els.btnStart.textContent = paused ? "继续上班" : "开始上班";
+    els.btnStart.classList.toggle("hidden", running);
+    els.btnPause.classList.toggle("hidden", !running);
+    els.btnEnd.classList.toggle("hidden", idle);
+    var showOtBtn = running && settings.otEnabled && settings.otMode === "manual" && session.otManualAtMs === null;
+    els.btnOt.classList.toggle("hidden", !showOtBtn);
+
+    /* 摸鱼区 */
+    var chips = $("slackTypes").querySelectorAll(".chip");
+    for(var i = 0; i < chips.length; i++){
+      chips[i].disabled = !running;
+      chips[i].classList.toggle("active", slacking && chips[i].getAttribute("data-type") === session.slackActive.type);
+    }
+    els.slackNow.classList.toggle("hidden", !slacking);
+    if(slacking){
+      var curMs = workedMs() - session.slackActive.fromMs;
+      els.slackNowText.textContent = "正在" + session.slackActive.type + " · 已摸 " + fmtHMS(curMs);
+      els.slackNowAmt.textContent = fmt(earnedIn(session.slackActive.fromMs, workedMs()));
+    }
+    if(idle){
+      els.slackBreakdown.innerHTML = "还没开始上班，摸鱼按钮是灰的 —— 先点上面的「开始上班」。";
+    } else if(slackTotalMs() <= 0){
+      els.slackBreakdown.innerHTML = "本次还没摸鱼。点一个类型就开始计时，金额按你当时的费率算（加班时段摸鱼更贵 😏）。今日已结算摸鱼：" + fmt(day.slack);
+    } else {
+      var bt = slackByType(), html = "本次摸鱼共 <b>" + fmtDur(slackTotalMs()) + "</b>，偷了 <b>" + fmt(slackMoney) + "</b>：<br>";
+      for(var j = 0; j < bt.order.length; j++){
+        var t = bt.order[j];
+        html += "· " + t + "：" + fmtDur(bt.map[t].ms) + " → <b>" + fmt(bt.map[t].money) + "</b><br>";
+      }
+      html += "今日累计摸鱼（含已结算）：" + fmt(day.slack + slackMoney);
+      els.slackBreakdown.innerHTML = html;
+    }
+
+    els.workDaysEcho.textContent = workDaysPerWeek();
+    var r = baseHourly();
+    if(settings.mode === "annual"){
+      els.derived.innerHTML = "每年工作 " + (workDaysPerWeek()*52) + " 天 · 日薪 <b>" + fmt(dayTarget()) +
+        "</b> · 折算时薪 <b>" + fmt(r) + "</b>（年薪 ÷ 工作天数 ÷ " + settings.hoursPerDay + " 小时；工资按 " + settings.inputCurrency + " 输入，金额按 " + settings.currency + " 显示）";
+    } else {
+      els.derived.innerHTML = "时薪 <b>" + fmt(r) + "</b> · 按每天 " + settings.hoursPerDay + " 小时算，日目标 <b>" + fmt(dayTarget()) + "</b>（工资按 " + settings.inputCurrency + " 输入，金额按 " + settings.currency + " 显示）";
+    }
+  }
+
+  /* ---------- 操作 ---------- */
+  els.btnStart.addEventListener("click", function(){
+    if(session.status === "idle"){
+      session.accumMs = 0; session.otManualAtMs = null; session.date = todayStr();
+      session.slackActive = null; session.slackSegs = [];
+      els.summary.classList.add("hidden");
+    }
+    session.status = "running";
+    session.segStart = Date.now();
+    persist(); render();
+  });
+  els.btnPause.addEventListener("click", function(){
+    if(session.status !== "running") return;
+    endSlack();
+    session.accumMs = workedMs();
+    session.segStart = null;
+    session.status = "paused";
+    persist(); render();
+  });
+  els.btnOt.addEventListener("click", function(){
+    session.otManualAtMs = workedMs();
+    persist(); render();
+  });
+  els.btnEnd.addEventListener("click", function(){
+    endSlack();
+    var e = earnings();
+    var wms = workedMs();
+    var sMoney = slackTotalMoney(), sMs = slackTotalMs();
+    day.earned += e.total; day.slack += sMoney; day.date = todayStr(); save(LS_DAY, day);
+    var html = "🎉 本次下班结算<br>工作时长 <b>" + fmtHMS(wms) + "</b> · 正常收入 <b>" + fmt(e.normalPay) +
+      "</b>" + (settings.otEnabled ? " · 加班收入 <b>" + fmt(e.otPay) + "</b>" : "") +
+      "<br>本次共赚 <span class='amt'>" + fmt(e.total) + "</span>";
+    if(sMs > 0){
+      var bt = slackByType(), parts = [];
+      for(var j = 0; j < bt.order.length; j++) parts.push(bt.order[j] + " " + fmt(bt.map[bt.order[j]].money));
+      html += "<br>🐟 其中带薪摸鱼 " + fmtDur(sMs) + "，偷了 <b>" + fmt(sMoney) + "</b>（" + parts.join("、") + "）";
+    }
+    html += "<br>今日累计 " + fmt(day.earned) + "，今日摸鱼累计 " + fmt(day.slack);
+    els.summary.innerHTML = html;
+    els.summary.classList.remove("hidden");
+    session = { status:"idle", segStart:null, accumMs:0, otManualAtMs:null, slackActive:null, slackSegs:[], date: todayStr() };
+    persist(); render();
+  });
+
+  /* ---------- 摸鱼操作 ---------- */
+  $("slackTypes").addEventListener("click", function(ev){
+    var b = ev.target.closest(".chip"); if(!b || b.disabled) return;
+    if(session.status !== "running") return;
+    var type = b.getAttribute("data-type");
+    if(session.slackActive && session.slackActive.type === type){ endSlack(); }
+    else {
+      endSlack();
+      session.slackActive = { type: type, fromMs: workedMs() };
+    }
+    persist(); render();
+  });
+  $("btnSlackEnd").addEventListener("click", function(){
+    endSlack(); persist(); render();
+  });
+  $("curSel").addEventListener("change", function(){
+    settings.currency = $("curSel").value;
+    save(LS_SET, settings); render();
+  });
+  $("inCurSel").addEventListener("change", function(){
+    settings.inputCurrency = $("inCurSel").value;
+    save(LS_SET, settings);
+    refreshInputFields();
+    render();
+  });
+
+  /* ---------- 设置表单 ---------- */
+  function refreshInputFields(){
+    $("inAnnual").value = toInputVal(settings.annual);
+    $("inHourly").value = toInputVal(settings.hourly);
+    $("annualUnit").textContent = settings.inputCurrency + "/年";
+    $("hourlyUnit").textContent = settings.inputCurrency + "/小时";
+  }
+  function bindSettings(){
+    refreshInputFields();
+    $("inCurSel").value = settings.inputCurrency;
+    $("inRestDays").value = String(settings.restDays);
+    $("inHoursPerDay").value = settings.hoursPerDay;
+    $("inOtEnabled").checked = settings.otEnabled;
+    $("inOtMult").value = settings.otMult;
+    $("inOtMode").value = settings.otMode;
+    $("inOtAfter").value = settings.otAfter;
+    $("curSel").value = settings.currency;
+    applyModeVisibility();
+  }
+  function applyModeVisibility(){
+    $("annualFields").classList.toggle("hidden", settings.mode !== "annual");
+    $("hourlyFields").classList.toggle("hidden", settings.mode !== "hourly");
+    $("otFields").classList.toggle("hidden", !settings.otEnabled);
+    $("otAfterField").classList.toggle("hidden", settings.otMode !== "auto");
+    var btns = $("modeSeg").querySelectorAll("button");
+    for(var i = 0; i < btns.length; i++) btns[i].classList.toggle("sel", btns[i].getAttribute("data-mode") === settings.mode);
+  }
+  function readSettings(){
+    settings.annual = num($("inAnnual").value, 0) * PAIRS[settings.inputCurrency].USD;
+    settings.restDays = parseInt($("inRestDays").value, 10) || 0;
+    settings.hourly = num($("inHourly").value, 0) * PAIRS[settings.inputCurrency].USD;
+    settings.hoursPerDay = num($("inHoursPerDay").value, 8);
+    settings.otEnabled = $("inOtEnabled").checked;
+    settings.otMult = num($("inOtMult").value, 1.5);
+    settings.otMode = $("inOtMode").value;
+    settings.otAfter = num($("inOtAfter").value, settings.hoursPerDay);
+    save(LS_SET, settings);
+    applyModeVisibility();
+    render();
+  }
+  var inputs = ["inAnnual","inRestDays","inHourly","inHoursPerDay","inOtEnabled","inOtMult","inOtMode","inOtAfter"];
+  inputs.forEach(function(id){ $(id).addEventListener("input", readSettings); $(id).addEventListener("change", readSettings); });
+  $("modeSeg").addEventListener("click", function(ev){
+    var b = ev.target.closest("button"); if(!b) return;
+    settings.mode = b.getAttribute("data-mode");
+    save(LS_SET, settings); applyModeVisibility(); render();
+  });
+
+  /* ---------- 屏幕常亮（Wake Lock） ---------- */
+  var wake = null, wakeWanted = false;
+  var wakeBtn = $("wakeBtn");
+  function setWakeLabel(){ wakeBtn.textContent = wakeWanted ? "☀️ 屏幕常亮：开" : "☀️ 屏幕常亮：关"; wakeBtn.classList.toggle("on", wakeWanted); }
+  function acquireWake(){
+    if(!("wakeLock" in navigator)) return;
+    navigator.wakeLock.request("screen").then(function(w){
+      wake = w;
+      w.addEventListener("release", function(){ wake = null; });
+    }).catch(function(){});
+  }
+  wakeBtn.addEventListener("click", function(){
+    wakeWanted = !wakeWanted;
+    if(wakeWanted){ acquireWake(); }
+    else if(wake){ wake.release(); wake = null; }
+    setWakeLabel();
+  });
+  document.addEventListener("visibilitychange", function(){
+    render();
+    if(document.visibilityState === "visible" && wakeWanted && !wake) acquireWake();
+  });
+
+  /* ---------- 主循环：金额一律按时间戳重算，锁屏/后台回来自动对齐 ---------- */
+  bindSettings();
+  render();
+  setInterval(render, 100);
+  setInterval(persist, 5000);
+})();
+</script>
+</body>
+</html>
