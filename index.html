@@ -90,6 +90,9 @@
   .note b{color:#c8d6e5;font-weight:600}
   .summary{background:rgba(61,220,132,.06);border:1px solid #234d36;border-radius:12px;padding:14px;font-size:14px;line-height:1.9;margin-top:14px}
   .summary .amt{color:var(--gold);font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}
+  .cur-top{margin:14px auto 0;max-width:280px}
+  .cur-top select{width:100%;background:#0d1420;border:1px solid var(--gold);color:var(--text);
+    border-radius:10px;padding:9px 10px;font-size:14px;font-family:inherit;outline:none;text-align:center}
   .slack-types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 6px}
   .chip{background:#0d1420;border:1px solid var(--line);color:var(--text);border-radius:11px;padding:11px 2px;font-size:14px;font-weight:600}
   .chip.active{border-color:var(--blue);color:var(--blue);background:#1c2f45}
@@ -113,6 +116,38 @@
     <div class="status-line" id="statusLine">还没开始上班</div>
     <div class="big-money" id="bigMoney">$0.00</div>
     <div class="per-sec" id="perSec">先在下面填好工资，再点「开始上班」</div>
+    <div class="cur-top">
+      <select id="curSelTop" aria-label="显示货币">
+        <optgroup label="常用">
+          <option value="USD">🇺🇸 美元 USD</option>
+          <option value="CAD">🇨🇦 加元 CAD</option>
+          <option value="CNY">🇨🇳 人民币 CNY</option>
+          <option value="JPY">🇯🇵 日元 JPY</option>
+          <option value="KRW">🇰🇷 韩元 KRW</option>
+          <option value="AUD">🇦🇺 澳元 AUD</option>
+          <option value="EUR">🇪🇺 欧元 EUR</option>
+          <option value="GBP">🇬🇧 英镑 GBP</option>
+          <option value="SGD">🇸🇬 新加坡元 SGD</option>
+          <option value="HKD">🇭🇰 港币 HKD</option>
+          <option value="TWD">🇹🇼 新台币 TWD</option>
+        </optgroup>
+        <optgroup label="数字巨大 · 爽版（纯好玩）">
+          <option value="IRR">🇮🇷 伊朗里亚尔 · 全球最不值钱</option>
+          <option value="LBP">🇱🇧 黎巴嫩镑 LBP</option>
+          <option value="VND">🇻🇳 越南盾 VND</option>
+          <option value="LAK">🇱🇦 老挝基普 LAK</option>
+          <option value="IDR">🇮🇩 印尼盾 IDR</option>
+          <option value="UZS">🇺🇿 乌兹别克苏姆 UZS</option>
+          <option value="PYG">🇵🇾 巴拉圭瓜拉尼 PYG</option>
+          <option value="MGA">🇲🇬 马达加斯加阿里亚里 MGA</option>
+          <option value="KHR">🇰🇭 柬埔寨瑞尔 KHR</option>
+          <option value="COP">🇨🇴 哥伦比亚比索 COP</option>
+          <option value="NGN">🇳🇬 尼日利亚奈拉 NGN</option>
+          <option value="CLP">🇨🇱 智利比索 CLP</option>
+          <option value="HUF">🇭🇺 匈牙利福林 HUF</option>
+        </optgroup>
+      </select>
+    </div>
     <div class="stats">
       <div class="stat"><div class="v" id="statWorked">00:00:00</div><div class="k">已工作</div></div>
       <div class="stat"><div class="v" id="statRate">$0.00</div><div class="k">当前时薪</div></div>
@@ -622,6 +657,12 @@
   });
   $("curSel").addEventListener("change", function(){
     settings.currency = $("curSel").value;
+    $("curSelTop").value = settings.currency;
+    save(LS_SET, settings); render();
+  });
+  $("curSelTop").addEventListener("change", function(){
+    settings.currency = $("curSelTop").value;
+    $("curSel").value = settings.currency;
     save(LS_SET, settings); render();
   });
   $("inCurSel").addEventListener("change", function(){
@@ -648,6 +689,7 @@
     $("inOtMode").value = settings.otMode;
     $("inOtAfter").value = settings.otAfter;
     $("curSel").value = settings.currency;
+    $("curSelTop").value = settings.currency;
     applyModeVisibility();
   }
   function applyModeVisibility(){
