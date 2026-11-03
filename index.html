@@ -266,6 +266,14 @@
           <span class="unit">即每周上 <b id="workDaysEcho">5</b> 天</span>
         </div>
       </div>
+      <div class="field">
+        <label>年假（带薪休假，一年几天不来上班）</label>
+        <div class="row"><input type="number" id="inVacation" inputmode="numeric" min="0" step="1" value="15"><span class="unit">天/年</span></div>
+      </div>
+      <div class="field">
+        <label>公共假期（一年几天不来上班）</label>
+        <div class="row"><input type="number" id="inHoliday" inputmode="numeric" min="0" step="1" value="11"><span class="unit">天/年</span></div>
+      </div>
     </div>
 
     <div id="hourlyFields" class="hidden">
@@ -380,6 +388,7 @@
   /* 工资在内部一律以美元存（annual/hourly 都是美元数），输入框按输入货币换算显示 */
   var settings = Object.assign({
     mode:"annual", annual:150000, restDays:2, hoursPerDay:8,
+    vacationDays:15, holidayDays:11,
     hourly:45, otEnabled:false, otMult:1.5, otMode:"auto", otAfter:8,
     currency:"USD", inputCurrency:"USD"
   }, load(LS_SET, {}));
@@ -408,16 +417,18 @@
   }
 
   function workDaysPerWeek(){ return 7 - settings.restDays; }
+  /* 年薪实际工作天数 = 每周工作天数 × 52 周 − 年假 − 公共假期 */
+  function annualWorkDays(){
+    return Math.max(1, workDaysPerWeek() * 52 - settings.vacationDays - settings.holidayDays);
+  }
   function baseHourly(){
     if(settings.mode === "hourly") return settings.hourly;
-    var days = workDaysPerWeek() * 52;
-    if(days <= 0 || settings.hoursPerDay <= 0) return 0;
-    return settings.annual / days / settings.hoursPerDay;
+    if(settings.hoursPerDay <= 0) return 0;
+    return settings.annual / annualWorkDays() / settings.hoursPerDay;
   }
   function dayTarget(){
     if(settings.mode === "hourly") return settings.hourly * settings.hoursPerDay;
-    var days = workDaysPerWeek() * 52;
-    return days > 0 ? settings.annual / days : 0;
+    return settings.annual / annualWorkDays();
   }
 
   /* ---------- 会话状态（摸鱼段按“已工作毫秒”坐标记录，暂停自动冻结） ---------- */
@@ -589,8 +600,8 @@
     els.workDaysEcho.textContent = workDaysPerWeek();
     var r = baseHourly();
     if(settings.mode === "annual"){
-      els.derived.innerHTML = "每年工作 " + (workDaysPerWeek()*52) + " 天 · 日薪 <b>" + fmt(dayTarget()) +
-        "</b> · 折算时薪 <b>" + fmt(r) + "</b>（年薪 ÷ 工作天数 ÷ " + settings.hoursPerDay + " 小时；工资按 " + settings.inputCurrency + " 输入，金额按 " + settings.currency + " 显示）";
+      els.derived.innerHTML = "每年实际工作 <b>" + annualWorkDays() + " 天</b>（每周 " + workDaysPerWeek() + " 天 × 52 周 − 年假 " + settings.vacationDays + " 天 − 公共假期 " + settings.holidayDays + " 天）· 日薪 <b>" + fmt(dayTarget()) +
+        "</b> · 折算时薪 <b>" + fmt(r) + "</b>（工资按 " + settings.inputCurrency + " 输入，金额按 " + settings.currency + " 显示）";
     } else {
       els.derived.innerHTML = "时薪 <b>" + fmt(r) + "</b> · 按每天 " + settings.hoursPerDay + " 小时算，日目标 <b>" + fmt(dayTarget()) + "</b>（工资按 " + settings.inputCurrency + " 输入，金额按 " + settings.currency + " 显示）";
     }
@@ -683,6 +694,8 @@
     refreshInputFields();
     $("inCurSel").value = settings.inputCurrency;
     $("inRestDays").value = String(settings.restDays);
+    $("inVacation").value = settings.vacationDays;
+    $("inHoliday").value = settings.holidayDays;
     $("inHoursPerDay").value = settings.hoursPerDay;
     $("inOtEnabled").checked = settings.otEnabled;
     $("inOtMult").value = settings.otMult;
@@ -703,6 +716,8 @@
   function readSettings(){
     settings.annual = num($("inAnnual").value, 0) * PAIRS[settings.inputCurrency].USD;
     settings.restDays = parseInt($("inRestDays").value, 10) || 0;
+    settings.vacationDays = Math.floor(num($("inVacation").value, 0));
+    settings.holidayDays = Math.floor(num($("inHoliday").value, 0));
     settings.hourly = num($("inHourly").value, 0) * PAIRS[settings.inputCurrency].USD;
     settings.hoursPerDay = num($("inHoursPerDay").value, 8);
     settings.otEnabled = $("inOtEnabled").checked;
@@ -713,7 +728,7 @@
     applyModeVisibility();
     render();
   }
-  var inputs = ["inAnnual","inRestDays","inHourly","inHoursPerDay","inOtEnabled","inOtMult","inOtMode","inOtAfter"];
+  var inputs = ["inAnnual","inRestDays","inVacation","inHoliday","inHourly","inHoursPerDay","inOtEnabled","inOtMult","inOtMode","inOtAfter"];
   inputs.forEach(function(id){ $(id).addEventListener("input", readSettings); $(id).addEventListener("change", readSettings); });
   $("modeSeg").addEventListener("click", function(ev){
     var b = ev.target.closest("button"); if(!b) return;
