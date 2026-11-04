@@ -101,6 +101,10 @@
   .slack-amt{font-size:clamp(30px,9vw,42px);font-weight:800;color:var(--blue);font-variant-numeric:tabular-nums;line-height:1.2;word-break:break-all;text-shadow:0 0 26px rgba(77,163,255,.25)}
   .breakdown{font-size:13px;color:var(--dim);line-height:2;font-variant-numeric:tabular-nums}
   .breakdown b{color:var(--text);font-weight:600}
+  .nug-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .nug-row:last-child{border-bottom:none}
+  .nug-row .n{font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;font-size:16px}
+  .nug-row .p{font-size:11px;color:var(--dim)}
   footer{text-align:center;color:#54677c;font-size:11px;margin-top:6px;line-height:1.8}
 </style>
 </head>
@@ -222,6 +226,17 @@
       <div class="controls"><button class="btn-slack-end" id="btnSlackEnd">结束摸鱼，回去干活</button></div>
     </div>
     <div class="breakdown" id="slackBreakdown">还没开始上班，摸鱼按钮是灰的 —— 先点上面的「开始上班」。</div>
+  </section>
+
+  <!-- ===== 麦乐鸡块指数 ===== -->
+  <section class="card">
+    <h2>🍗 麦乐鸡块指数<span class="sub">换个单位看工资，纯属好玩</span></h2>
+    <div class="seg" id="nuggetSeg">
+      <button data-basis="total" class="sel">按本次总收入</button>
+      <button data-basis="slack">按摸鱼偷的</button>
+    </div>
+    <div id="nuggetList"></div>
+    <p class="note">每块单价是 2026 年 11 月网上查的大概价、写死在代码里：美国按 10 块 $5.79、中国按 10 块 ¥21.47、加拿大按 10 块 CA$11.49、日本按 5 块 ¥290、澳洲按 10 块 A$10.75、英国按 9 块 £4.99 折算。各地门店价格有浮动，图一乐。</p>
   </section>
 
   <!-- ===== 工资设置 ===== -->
@@ -385,6 +400,17 @@
   }
 
   /* ---------- 设置 ---------- */
+  /* 麦乐鸡块单价（当地货币/块，2026-11 网上查的大概价写死）：美国 10 块 $5.79 / 中国 10 块 ¥21.47 / 加拿大 10 块 CA$11.49 / 日本 5 块 ¥290 / 澳洲 10 块 A$10.75 / 英国 9 块 £4.99 */
+  var NUGGETS = [
+    { flag:"🇺🇸", name:"美国", cur:"USD", price:0.58 },
+    { flag:"🇨🇳", name:"中国", cur:"CNY", price:2.15 },
+    { flag:"🇨🇦", name:"加拿大", cur:"CAD", price:1.15 },
+    { flag:"🇯🇵", name:"日本", cur:"JPY", price:58 },
+    { flag:"🇦🇺", name:"澳洲", cur:"AUD", price:1.08 },
+    { flag:"🇬🇧", name:"英国", cur:"GBP", price:0.55 }
+  ];
+  var nuggetBasis = "total"; // total = 本次总收入 | slack = 摸鱼偷的
+
   /* 工资在内部一律以美元存（annual/hourly 都是美元数），输入框按输入货币换算显示 */
   var settings = Object.assign({
     mode:"annual", annual:150000, restDays:2, hoursPerDay:8,
@@ -517,7 +543,7 @@
     btnStart: $("btnStart"), btnPause: $("btnPause"), btnOt: $("btnOt"), btnEnd: $("btnEnd"),
     summary: $("summaryBox"), derived: $("derivedBox"), workDaysEcho: $("workDaysEcho"),
     slackNow: $("slackNow"), slackNowText: $("slackNowText"), slackNowAmt: $("slackNowAmt"),
-    slackBreakdown: $("slackBreakdown")
+    slackBreakdown: $("slackBreakdown"), nuggetList: $("nuggetList")
   };
 
   function render(){
@@ -596,6 +622,21 @@
       html += "今日累计摸鱼（含已结算）：" + fmt(day.slack + slackMoney);
       els.slackBreakdown.innerHTML = html;
     }
+
+    /* 麦乐鸡块指数 */
+    var nugAmt = nuggetBasis === "slack" ? slackMoney : e.total;
+    var nugHtml = "", bestIdx = -1, bestVal = -1, counts = [];
+    for(var n = 0; n < NUGGETS.length; n++){
+      var cnt = Math.floor(nugAmt * USD_PER[NUGGETS[n].cur].rate / NUGGETS[n].price);
+      counts.push(cnt);
+      if(cnt > bestVal){ bestVal = cnt; bestIdx = n; }
+    }
+    for(var m = 0; m < NUGGETS.length; m++){
+      nugHtml += "<div class='nug-row'><span>" + NUGGETS[m].flag + " " + NUGGETS[m].name +
+        (m === bestIdx && bestVal > 0 ? " 🏆" : "") + "</span><span class='n'>" +
+        counts[m].toLocaleString("en-US") + " 块</span></div>";
+    }
+    els.nuggetList.innerHTML = nugHtml;
 
     els.workDaysEcho.textContent = workDaysPerWeek();
     var r = baseHourly();
@@ -734,6 +775,13 @@
     var b = ev.target.closest("button"); if(!b) return;
     settings.mode = b.getAttribute("data-mode");
     save(LS_SET, settings); applyModeVisibility(); render();
+  });
+  $("nuggetSeg").addEventListener("click", function(ev){
+    var b = ev.target.closest("button"); if(!b) return;
+    nuggetBasis = b.getAttribute("data-basis");
+    var btns = $("nuggetSeg").querySelectorAll("button");
+    for(var i = 0; i < btns.length; i++) btns[i].classList.toggle("sel", btns[i] === b);
+    render();
   });
 
   /* ---------- 屏幕常亮（Wake Lock） ---------- */
